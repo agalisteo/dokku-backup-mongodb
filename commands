@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
+
+BACKUP_PATH=/var/lib/dokku/data/storage/backups
+
+if [ ! -d $BACKUP_PATH ]; then
+  mkdir -p $BACKUP_PATH
+fi
+
+PLUGIN_BASE_PATH="$PLUGIN_PATH"
+if [[ -n $DOKKU_API_VERSION ]]; then
+  PLUGIN_BASE_PATH="$PLUGIN_ENABLED_PATH"
+fi
+source "$PLUGIN_BASE_PATH/common/functions"
+
+get_backup_root() {
+  if [[ ! -z "$1" ]]; then
+    verify_app_name "$1"
+    APP="$1"
+    echo "$DOKKU_ROOT/$APP"
+  else
+    echo "$DOKKU_ROOT"
+  fi
+}
+
+get_database_name() {
+  if [[ -n $1 && -n $2 ]]; then
+    echo "$2"
+  else
+    echo "$1"
+  fi
+}
+
+case "$1" in
+  backup:set)
+    BACKUP_ROOT=$(get_backup_root "$2")
+    DATABASE_NAME=$(get_database_name "$2" "$3")
+    [[ -z $DATABASE_NAME ]] && echo "Please specify database name" && exit 1
+    echo "$DATABASE_NAME" > "$BACKUP_ROOT/BACKUP_DATABASE_NAME"
+    ;;
+
+  backup:clear)
+    BACKUP_ROOT=$(get_backup_root "$2")
+    rm "$BACKUP_ROOT/BACKUP_DATABASE_NAME"
+    ;;
+
+  backup:get)
+    BACKUP_ROOT=$(get_backup_root "$2")
+    cat "$BACKUP_ROOT/BACKUP_DATABASE_NAME"
+    ;;
+
+  help)
+    HELP=$(cat<<EOF
+    backup:set [app] <database name>
+    backup:clear [app], Clears Backup database name
+    backup:get [app], Display backup database name
+EOF
+)
+    if [[ -n $DOKKU_API_VERSION ]]; then
+      echo "$HELP"
+    else
+      cat && echo "$HELP"
+    fi
+    ;;
+
+  *)
+    exit $DOKKU_NOT_IMPLEMENTED_EXIT
+    ;;
+esac

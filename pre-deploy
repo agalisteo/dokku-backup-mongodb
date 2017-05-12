@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
+
+APP="$1"
+IMAGE="$2"
+MONGODB_BIND="172.17.0.1"
+BACKUP_PATH="/var/lib/dokku/data/storage/backups"
+cdate=`date +"%d-%m-%Y-%T"`
+
+if [[ -f "$DOKKU_ROOT/$APP/BACKUP_DATABASE_NAME" || -f "$DOKKU_ROOT/BACKUP_DATABASE_NAME" ]]; then
+  echo "-----> Dumping Database ..."
+  BACKUP_DATABASE_NAME=$(cat "$DOKKU_ROOT/$APP/BACKUP_DATABASE_NAME" 2> /dev/null || cat "$DOKKU_ROOT/BACKUP_DATABASE_NAME" 2> /dev/null)
+  BACKUP_RESULT=$(mongodump -h ${MONGODB_BIND} -d ${BACKUP_DATABASE_NAME} -o $BACKUP_PATH/$APP/$APP-$cdate)
+  echo "       ${BACKUP_RESULT}"
+else
+  echo "-----> Skipping dump process ..."
+fi
